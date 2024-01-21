@@ -49,7 +49,7 @@ int main() {
     cout << "Sequential: " << seqElapsed.count() << "ms" << endl;
     cout << "-----------------------------------------" << endl;
 
-    printSolution(solution, maze.M, maze.N);
+//    printSolution(solution, maze.M, maze.N);
 
     startTime = chrono::system_clock::now();
     bool exitFound = false;
@@ -57,11 +57,12 @@ int main() {
         solution = parallelSolver(particles, maze, exit, exitFound);
     }
     endTime = system_clock::now();
-    seqElapsed = duration_cast<milliseconds>(endTime - startTime) / N_TESTS;
-    cout << "Parallel: " << seqElapsed.count() << "ms" << endl;
+    auto elapsed = duration_cast<milliseconds>(endTime - startTime) / N_TESTS;
+    cout << "Parallel: " << elapsed.count() << "ms" << endl;
+    cout << "Speedup: " << (float)seqElapsed.count() / elapsed.count() << "x" << endl;
     cout << "-----------------------------------------" << endl;
 
-    printSolution(solution, maze.M, maze.N);
+//    printSolution(solution, maze.M, maze.N);
 
 }
 
