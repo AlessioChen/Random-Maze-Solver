@@ -7,10 +7,10 @@ using namespace std;
 using namespace chrono;
 
 
-#define MAZE_M 10
-#define MAZE_N 10
+#define MAZE_M 30
+#define MAZE_N 30
 #define N_TESTS 10
-#define N_PARTICLES 100
+#define N_PARTICLES 10
 
 
 char **sequentialSolver(vector<Particle> particles, Maze maze, Point exit);
@@ -60,13 +60,14 @@ int main() {
     vector<float> speedups = {};
 
     for (int i = 0; i < threadTests.size(); i++) {
+
         omp_set_num_threads(threadTests[i]);
         startTime = chrono::system_clock::now();
-        bool exitFound = false;
         for (int j = 0; j < N_TESTS; j++) {
-            solution = parallelSolver(particles, maze, exit, exitFound);
+            solution = parallelSolver(particles, maze, exit, false);
         }
         endTime = system_clock::now();
+
         cout << solution << endl;
         auto elapsed = duration_cast<milliseconds>(endTime - startTime) / N_TESTS;
         cout << "Parallel [t= " << threadTests[i] << "]: " << elapsed.count() << "ms" << endl;
@@ -74,6 +75,8 @@ int main() {
         cout << "-----------------------------------------" << endl;
         times.push_back(elapsed.count());
         speedups.push_back((float) seqElapsed.count() / elapsed.count());
+
+//        printSolution(solution, maze.M, maze.N);
     }
 
     printVector(times, "Times");
@@ -90,8 +93,8 @@ char **sequentialSolver(vector<Particle> particles, Maze maze, Point exit) {
 
     while (all_of(particles.begin(), particles.end(),
                   [&exit, &maze](const Particle &p) {
-        return !maze.isExitFound(p.position, exit);
-    })) {
+                      return !maze.isExitFound(p.position, exit);
+                  })) {
         for (Particle &particle: particles) {
             maze.randomMove(particle);
 
@@ -112,31 +115,40 @@ char **sequentialSolver(vector<Particle> particles, Maze maze, Point exit) {
 
 char **parallelSolver(vector<Particle> particles, Maze maze, Point exit, bool exitFound) {
 
-
-    Particle firstToFindExit;
     char **solution = maze.maze;
+    Particle firstToFindExit;
 
-#pragma omp parallel shared(exitFound) {
+#pragma omp parallel shared(exitFound, firstToFindExit)
+    {
+        Particle localFirstToFindExit;
+        bool localExitFound = false;
 
 #pragma omp for
-    for (int i = 0; i < particles.size(); i++) {
-        Particle particle = particles[i];
+        for (int i = 0; i < particles.size(); i++) {
+            Particle particle = particles[i];
 
-#pragma  omp critical
-        while (!exitFound) {
+            while (!localExitFound && !exitFound) {
+                maze.randomMove(particle);
+                if (maze.isExitFound(particle.position, exit)) {
+                    localFirstToFindExit = particle;
+                    localExitFound = true;
+                }
 
-            maze.randomMove(particle);
-            if (maze.isExitFound(particle.position, exit)) {
-                firstToFindExit = particle;
-                exitFound = true;
+                if (localExitFound) {
+#pragma omp critical
+                    {
+                        exitFound = true;
+                        firstToFindExit = localFirstToFindExit;
+                    }
+                }
             }
+
         }
     }
 
     for (int i = 0; i < firstToFindExit.path.size(); i++) {
         Point &p = firstToFindExit.path[i];
         solution[p.x][p.y] = '.';
-
     }
 
     return solution;
