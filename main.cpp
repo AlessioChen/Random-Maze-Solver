@@ -7,8 +7,8 @@ using namespace std;
 using namespace chrono;
 
 
-#define MAZE_M 30
-#define MAZE_N 30
+#define MAZE_M 10
+#define MAZE_N 10
 #define N_TESTS 10
 #define N_PARTICLES 100
 
@@ -88,7 +88,8 @@ char **sequentialSolver(vector<Particle> particles, Maze maze, Point exit) {
     Particle firstToFindExit;
     char **solution = maze.maze;
 
-    while (all_of(particles.begin(), particles.end(), [&exit, &maze](const Particle &p) {
+    while (all_of(particles.begin(), particles.end(),
+                  [&exit, &maze](const Particle &p) {
         return !maze.isExitFound(p.position, exit);
     })) {
         for (Particle &particle: particles) {
