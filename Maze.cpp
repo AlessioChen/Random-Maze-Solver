@@ -22,14 +22,20 @@ public:
     int n;
     int M;
     int N;
+    int directions[4][2];
 
     Maze(int _m = 4, int _n = 4) {
         m = _m;
         n = _n;
         M = 2 * m + 1;
         N = 2 * n +1;
-
         maze = new char *[M];
+
+        directions[0][0] = 0; directions[0][1] = 1;
+        directions[1][0] = 1; directions[1][1] = 0;
+        directions[2][0] = 0; directions[2][1] = -1;
+        directions[3][0] = -1; directions[3][1] = 0;
+
 
         for (int i = 0; i < M; i++) {
             maze[i] = new char[N];
@@ -180,14 +186,9 @@ public:
 
     void randomMove(Particle &particle) {
 
-        const vector<pair<int, int>> directions = {{0,  1},
-                                                   {1,  0},
-                                                   {0,  -1},
-                                                   {-1, 0}};
-
-        int i = rand() % directions.size();
-        int newX = particle.position.x + directions[i].first;
-        int newY = particle.position.y + directions[i].second;
+        int i = rand() % 4;
+        int newX = particle.position.x + directions[i][0];
+        int newY = particle.position.y + directions[i][1];
 
         if (isValidMove(newX, newY)) {
             maze[particle.position.x][particle.position.y] = ' ';

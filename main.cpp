@@ -7,10 +7,11 @@ using namespace std;
 using namespace chrono;
 
 
-#define MAZE_M 30
-#define MAZE_N 30
+#define MAZE_M 50
+#define MAZE_N 50
 #define N_TESTS 10
-#define N_PARTICLES 10
+#define N_PARTICLES 1000
+#define FIXED_SEED 42 // Fixed seed for random number generation
 
 
 char **sequentialSolver(vector<Particle> particles, Maze maze, Point exit);
@@ -27,13 +28,14 @@ int main() {
     Point exit = {2 * MAZE_M, 2 * MAZE_N - 1};
 
     vector<float> times = {};
+    srand(FIXED_SEED); //Fixed seed for random number generator
 
     Maze maze(MAZE_M, MAZE_N);
     maze.generate();
     maze.displayMaze();
 
+    char **solution;
 
-    srand(static_cast<unsigned>(time(nullptr)));
     vector<Particle> particles;
 
     for (int i = 0; i < N_PARTICLES; i++) {
@@ -42,8 +44,7 @@ int main() {
         particles.emplace_back(p);
     }
 
-    char **solution;
-    auto startTime = chrono::system_clock::now();
+    auto startTime = system_clock::now();
     for (int i = 0; i < N_TESTS; i++) {
         solution = sequentialSolver(particles, maze, exit);
     }
@@ -62,7 +63,7 @@ int main() {
     for (int i = 0; i < threadTests.size(); i++) {
 
         omp_set_num_threads(threadTests[i]);
-        startTime = chrono::system_clock::now();
+        startTime = system_clock::now();
         for (int j = 0; j < N_TESTS; j++) {
             solution = parallelSolver(particles, maze, exit, false);
         }
@@ -118,12 +119,12 @@ char **parallelSolver(vector<Particle> particles, Maze maze, Point exit, bool ex
     char **solution = maze.maze;
     Particle firstToFindExit;
 
-#pragma omp parallel shared(exitFound, firstToFindExit)
+#pragma omp parallel shared(exitFound, firstToFindExit, maze)
     {
         Particle localFirstToFindExit;
         bool localExitFound = false;
 
-#pragma omp for
+#pragma omp for schedule(static)
         for (int i = 0; i < particles.size(); i++) {
             Particle particle = particles[i];
 
