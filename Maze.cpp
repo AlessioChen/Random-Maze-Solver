@@ -22,7 +22,6 @@ public:
     int n;
     int M;
     int N;
-    int directions[4][2];
 
     Maze(int _m = 4, int _n = 4) {
         m = _m;
@@ -30,12 +29,6 @@ public:
         M = 2 * m + 1;
         N = 2 * n +1;
         maze = new char *[M];
-
-        directions[0][0] = 0; directions[0][1] = 1;
-        directions[1][0] = 1; directions[1][1] = 0;
-        directions[2][0] = 0; directions[2][1] = -1;
-        directions[3][0] = -1; directions[3][1] = 0;
-
 
         for (int i = 0; i < M; i++) {
             maze[i] = new char[N];
@@ -176,28 +169,53 @@ public:
         maze[2 * m][2 * n - 1] = 'E';
     }
 
-    bool isExitFound(const Point &particle, const Point &exit) {
-        return particle.x == exit.x && particle.y == exit.y;
+    bool isExitFound(const Point &pos, const Point &exit) {
+        return pos.x == exit.x && pos.y == exit.y;
     }
 
     bool isValidMove(int x, int y) {
         return x >= 0 && x < M && y >= 0 && y < N && maze[x][y] != '#' && maze[x][y] != 'S';
     }
 
+    vector<Point> getValidMoves(Particle &particle){
+        vector<Point> moves ;
+        int x = particle.position.x;
+        int y = particle.position.y;
+
+        if(isValidMove(x+1, y)) {
+            moves.push_back({1,0});
+        }
+
+        if(isValidMove(x-1, y)) {
+            moves.push_back({-1,0});
+        }
+
+        if(isValidMove(x, y+1)) {
+            moves.push_back({0,1});
+        }
+
+        if(isValidMove(x, y-1)) {
+            moves.push_back({0,-1});
+        }
+
+        return moves;
+
+    }
+
+
     void randomMove(Particle &particle) {
 
-        int i = rand() % 4;
-        int newX = particle.position.x + directions[i][0];
-        int newY = particle.position.y + directions[i][1];
+        vector<Point> moves = getValidMoves(particle);
+        int i = rand() % moves.size();
+        int newX = particle.position.x + moves[i].x;
+        int newY = particle.position.y + moves[i].y;
 
-        if (isValidMove(newX, newY)) {
-            maze[particle.position.x][particle.position.y] = ' ';
-            particle.position.x = newX;
-            particle.position.y = newY;
-            maze[particle.position.x][particle.position.y] = '.';
+        maze[particle.position.x][particle.position.y] = ' ';
+        particle.position.x = newX;
+        particle.position.y = newY;
+        maze[particle.position.x][particle.position.y] = '.';
 
-            particle.path.push_back(particle.position);
-        }
+        particle.path.push_back(particle.position);
 
     }
 
