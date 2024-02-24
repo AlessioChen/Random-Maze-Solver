@@ -5,103 +5,115 @@
 using namespace std;
 using namespace chrono;
 
-#define MAZE_M 20
-#define MAZE_N 20
-#define N_TESTS 10
-#define N_PARTICLES 1000
+#define MAZE_M 25
+#define MAZE_N 25
+#define N_TESTS 20
 #define FIXED_SEED 42
-
 
 char **sequentialSolver(vector<Particle> particles, Maze maze, Point exit);
 
 char **parallelSolver(vector<Particle> particles, Maze maze, Point exit, int threadNums);
 
-void printSolution(char **solution, int M, int N);
+void printSolution(char **solution);
 
 void printVector(vector<float> v, string name);
 
 int main() {
 
+    srand(FIXED_SEED);
+
     Point start = {1, 1};
     Point exit = {2 * MAZE_M, 2 * MAZE_N - 1};
 
-    vector<float> times = {};
-    srand(FIXED_SEED);
 
     Maze maze(MAZE_M, MAZE_N);
     maze.generate();
     maze.displayMaze();
 
-    char **solution;
 
     vector<Particle> particles;
+    vector<int> N_PARTICLES = {500, 1000, 2500, 5000, 10000};
+    vector<int> N_THREADS = {2, 4, 6, 8, 10, 16, 32, 64};
 
-    for (int i = 0; i < N_PARTICLES; i++) {
-        Particle p = {start};
-        p.path.push_back(start);
-        particles.push_back(p);
-    }
+    char **solution;
 
-    auto startTime = system_clock::now();
-    for (int i = 0; i < N_TESTS; i++) {
-        vector<Particle> particles_copy = particles;
-        Maze maze_copy = maze;
-        solution = sequentialSolver(particles_copy, maze_copy, exit);
-    }
-    auto endTime = system_clock::now();
-    cout << solution << endl;
-    auto seqElapsed = duration_cast<milliseconds>(endTime - startTime) / N_TESTS;
-    cout << "Sequential: " << seqElapsed.count() << "ms" << endl;
-    cout << "-----------------------------------------" << endl;
-    times.push_back(seqElapsed.count());
+    for (auto n: N_PARTICLES) {
 
+        cout << n << " particles" << endl << endl;
 
-    vector<int> threadTests = {2, 4, 6, 8, 16, 32, 64};
-    vector<float> speedups = {};
+        // Initializations
+        vector<float> times = {};
+        vector<float> speedups = {};
+        particles.clear();
 
-    for (int i = 0; i < threadTests.size(); i++) {
+        for (int i = 0; i < n; i++) {
+            Particle p = {start};
+            p.path.push_back(start);
+            particles.push_back(p);
+        }
 
-        startTime = system_clock::now();
-        for (int j = 0; j < N_TESTS; j++) {
+        // Sequential tests
+        auto startTime = system_clock::now();
+        for (int i = 0; i < N_TESTS; i++) {
             vector<Particle> particles_copy = particles;
             Maze maze_copy = maze;
-            solution = parallelSolver(particles_copy, maze_copy, exit, threadTests[i]);
+            solution = sequentialSolver(particles_copy, maze_copy, exit);
         }
-        endTime = system_clock::now();
-
+        auto endTime = system_clock::now();
         cout << solution << endl;
-        auto elapsed = duration_cast<milliseconds>(endTime - startTime) / N_TESTS;
-        cout << "Parallel [t= " << threadTests[i] << "]: " << elapsed.count() << "ms" << endl;
-        cout << "Speedup: " << (float) seqElapsed.count() / elapsed.count() << "x" << endl;
+        auto seqElapsed = duration_cast<milliseconds>(endTime - startTime) / N_TESTS;
+        cout << "Sequential: " << seqElapsed.count() << "ms" << endl;
         cout << "-----------------------------------------" << endl;
-        times.push_back(elapsed.count());
-        speedups.push_back((float) seqElapsed.count() / elapsed.count());
+        times.push_back(seqElapsed.count());
+
+
+        // Parallel tests
+        for (auto n_thread: N_THREADS) {
+            startTime = system_clock::now();
+            for (int j = 0; j < N_TESTS; j++) {
+                vector<Particle> particles_copy = particles;
+                Maze maze_copy = maze;
+                solution = parallelSolver(particles_copy, maze_copy, exit, n_thread);
+            }
+            endTime = system_clock::now();
+
+            cout << solution << endl;
+            auto elapsed = duration_cast<milliseconds>(endTime - startTime) / N_TESTS;
+            cout << "Parallel [t= " << n_thread << "]: " << elapsed.count() << "ms" << endl;
+            cout << "Speedup: " << (float) seqElapsed.count() / elapsed.count() << "x" << endl;
+            cout << "-----------------------------------------" << endl;
+            times.push_back(elapsed.count());
+            speedups.push_back((float) seqElapsed.count() / elapsed.count());
+        }
+
+        // Print results
+        printVector(times, "Times");
+        printVector(speedups, "Speedups");
+
     }
 
-    printVector(times, "Times");
-    printVector(speedups, "Speedups");
+    printSolution(solution);
+
 }
 
 
 char **sequentialSolver(vector<Particle> particles, Maze maze, Point exit) {
-
     Particle firstToFindExit;
+    bool solutionFound = false;
     char **solution = maze.maze;
 
-    while (all_of(particles.begin(), particles.end(),
-                  [&exit, &maze](const Particle &p) {
-                      return !maze.isExitFound(p.position, exit);
-                  })) {
+    while (!solutionFound) {
         for (Particle &particle: particles) {
-            maze.randomMove(particle);
+            if (!solutionFound) {
+                maze.randomMove(particle);
 
-            if (maze.isExitFound(particle.position, exit)) {
-                firstToFindExit = particle;
-                break;
+                if (maze.isExitFound(particle.position, exit)) {
+                    firstToFindExit = particle;
+                    solutionFound = true;
+                }
             }
         }
     }
-
 
     for (Point &p: firstToFindExit.path) {
         solution[p.x][p.y] = '.';
@@ -152,9 +164,10 @@ char **parallelSolver(std::vector<Particle> particles, Maze maze, Point exit, in
 }
 
 
-void printSolution(char **solution, int M, int N) {
-    for (int i = 0; i < M; i++) {
-        for (int j = 0; j < N; j++) {
+void printSolution(char **solution) {
+    solution[2 * MAZE_M][2 * MAZE_N - 1] = 'E';
+    for (int i = 0; i < 2 * MAZE_M + 1; i++) {
+        for (int j = 0; j < 2 * MAZE_N + 1; j++) {
             cout << solution[i][j] << " ";
         }
         cout << endl;
